@@ -68,7 +68,7 @@ npm install
 ### 3. Start the React Development Server
 Run the following command to start the React app:
 ```bash
-npm start
+npm run dev
 ```
 
 ---
