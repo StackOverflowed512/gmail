@@ -3,3 +3,5 @@ frontend/node_modules/
 
 # Ignore __pycache__ directories in the back-end
 backend/**/__pycache__/
+
+/pass.txt
