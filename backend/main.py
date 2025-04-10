@@ -7,7 +7,6 @@ from mail.mails import Mail
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
-
 SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -244,7 +243,8 @@ async def sendresponse(props: ResponseProps):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error generating response: {str(mail_error)}",
         )
-    
+
+
 from ai.response_predictor import ResponsePredictor
 class PredictProps(BaseModel):
     original_email: str

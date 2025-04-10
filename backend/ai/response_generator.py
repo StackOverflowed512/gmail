@@ -7,11 +7,13 @@ from langchain_core.prompts import (
 )
 
 class FastEmailResponseGenerator:
-    def __init__(self, model_name: str = "mistral"):
+    def __init__(self, model_name: str = "mistral"):  # "mistral":
         self.llm = ChatOllama(
             model=model_name,
             max_tokens=150,
             temperature=0.3,
+            num_thread=8,
+            num_gpu=1,
         )
         
         self.emotion_system_prompt = SystemMessagePromptTemplate.from_template(
@@ -36,14 +38,18 @@ class FastEmailResponseGenerator:
         response_prompt = ChatPromptTemplate.from_messages([
             self.response_system_prompt,
             HumanMessagePromptTemplate.from_template(
-                f"Generate a professional response to this email. subject not needed "
-                f"The sender's emotional tone is {emotion}.\n\n"
-                "Email: {email}\n\n"
-                "1. Acknowledge the emotional state\n"
-                "2. Address main concerns\n"
-                "3. Provide clear solutions\n"
-                "4. Keep it concise and professional"
-            )
+                f"""Generate a professional email body response (no subject, no greetings/signatures) based on the following email. 
+                The sender's emotional tone is **{emotion}**. Follow these rules strictly:
+                1. **Acknowledge the emotion**: Recognize the sender's tone ({emotion}) in a professional way.
+                2. **Address concerns**: Directly respond to key issues raised.
+                3. **Provide solutions**: Offer clear, actionable steps.
+                4. **Be concise**: Keep it brief (2-3 sentences max).
+
+                Email: {{email}}
+
+                Respond with ONLY the email body text, formatted professionally. Do not include labels like "Response:".
+                """
+                )
         ])
         
         response_chain = response_prompt | self.llm | StrOutputParser()

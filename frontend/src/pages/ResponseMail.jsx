@@ -40,16 +40,51 @@ function ResponseMail() {
       }
     }
   }, [mail]);
+  function htmlToPlainText(html) {
+    // Remove style, script, head, and meta tags
+    let plainText = html
+      .replace(/<style[^>]*>.*?<\/style>/gis, "")
+      .replace(/<script[^>]*>.*?<\/script>/gis, "")
+      .replace(/<head[^>]*>.*?<\/head>/gis, "")
+      .replace(/<meta[^>]*>/gis, "")
+      .replace(/<!DOCTYPE[^>]*>/gis, "");
 
+    // Replace HTML tags with appropriate plain text equivalents
+    plainText = plainText
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<p[^>]*>/gi, "\n")
+      .replace(/<div[^>]*>/gi, "\n")
+      .replace(/<td[^>]*>/gi, " ")
+      .replace(/<tr[^>]*>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "\n• ");
+
+    // Remove all remaining HTML tags
+    plainText = plainText.replace(/<[^>]+>/g, "");
+
+    // Replace HTML entities
+    plainText = plainText
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'");
+
+    // Collapse multiple whitespace and trim
+    plainText = plainText.replace(/\s+/g, " ").replace(/\n\s+/g, "\n").trim();
+
+    return plainText;
+  }
   const getreplayfromAi = async () => {
     setIsLoading(true);
     setResponse("thinking...");
+    const plainTextBody = htmlToPlainText(mail.body); // Remove HTML tags
     const res = await fetch("/api/response", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ data: mail.body }),
+      body: JSON.stringify({ data: plainTextBody }),
     });
     if (res.ok) {
       const data = await res.json();

@@ -8,7 +8,7 @@ from langchain_core.prompts import (
 import random
 
 class ResponsePredictor:
-    def __init__(self, model_name: str = "mistral"): #mistral
+    def __init__(self, model_name: str = "mistral"):  # "mistral"
         self.llm = ChatOllama(
             model=model_name,
             temperature=0.7,  # Higher temperature for more varied predictions
