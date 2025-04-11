@@ -116,3 +116,4 @@ def install_setup():
     webbrowser.open(url)
 
 
+install_setup()

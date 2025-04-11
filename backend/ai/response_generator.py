@@ -12,8 +12,8 @@ class FastEmailResponseGenerator:
             model=model_name,
             max_tokens=150,
             temperature=0.3,
-            num_thread=8,
-            num_gpu=1,
+            num_thread=10,
+            num_gpu=10,
         )
         
         self.emotion_system_prompt = SystemMessagePromptTemplate.from_template(
