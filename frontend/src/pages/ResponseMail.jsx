@@ -77,7 +77,6 @@ function ResponseMail() {
   }
   const getreplayfromAi = async () => {
     setIsLoading(true);
-    setResponse("thinking...");
     const plainTextBody = htmlToPlainText(mail.body); // Remove HTML tags
     const res = await fetch("/api/response", {
       method: "POST",
@@ -87,13 +86,17 @@ function ResponseMail() {
       body: JSON.stringify({ data: plainTextBody }),
     });
     if (res.ok) {
-      const data = await res.json();
-      console.log("AI response:", data.response);
+      const reader = await res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        setResponse((prev) => prev + decoder.decode(value));
+      }
       setIsLoading(false);
-      setResponse(data.response);
-      console.log("AI response:", data.response);
     } else {
       console.error("Error generating response:", res.statusText);
+      setIsLoading(false);
     }
   };
   const mailsendHandler = async () => {
@@ -138,18 +141,34 @@ function ResponseMail() {
         our_response: response,
       }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      console.log("AI response:", data.predicted_reply);
-      setPredictedResponse({
-        reply: data.predicted_reply.trim(),
-        probability: data.reply_probability,
-      });
-      setIsLoadingPredict(false);
-    } else {
-      console.error("Error generating response:", response.statusText);
+
+    if (!res.body) return;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    let finalText = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      finalText += chunk;
+      setResponse((prev) => prev + chunk); // stream it to UI
     }
+
+    // Extract percentage using regex
+    const match = finalText.match(/(\d{1,3})%/);
+    const probability = match ? Math.min(parseInt(match[1]), 100) : 80;
+
+    setPredictedResponse({
+      reply: finalText.trim(),
+      probability: probability,
+    });
+
+    setIsLoadingPredict(false);
   };
+
   return (
     <div className="px-6 py-4 gap-4 grid grid-rows-4 grid-cols-2 bg-secondary min-h-screen max-h-screen">
       <div className="border row-span-4  overflow-hidden overflow-y-scroll p-6 rounded-lg shadow-lg mb-6">

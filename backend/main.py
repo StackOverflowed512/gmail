@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, status, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import dns.resolver
+from fastapi.responses import StreamingResponse
 from mail.Auth import Auth
 from mail.mails import Mail
 from datetime import datetime, timedelta
@@ -232,35 +233,28 @@ class ResponseProps(BaseModel):
     data: str
 
 from ai.response_generator import FastEmailResponseGenerator
+from fastapi import Request
+generator = FastEmailResponseGenerator()
 @app.post("/response")
-async def sendresponse(props: ResponseProps):
-    try:
-        auth = FastEmailResponseGenerator()
-        response = await auth.generate_response(props.data)
-        return response
-    except Exception as mail_error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating response: {str(mail_error)}",
-        )
-
+async def generate_email(request: Request):
+    data = await request.json()
+    email_content = data.get("email")
+    emotion = await generator.detect_emotion(email_content)
+    stream = generator.stream_email_response(email_content, emotion)
+    return StreamingResponse(stream(), media_type="text/plain")
 
 from ai.response_predictor import ResponsePredictor
 class PredictProps(BaseModel):
     original_email: str
     our_response: str
-@app.post("/predict")
-async def predict(props: PredictProps):
-    try:
-        auth = ResponsePredictor()
-        response = await auth.predict_reply(props.original_email, props.our_response)
-        return response
-    except Exception as mail_error:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error generating response: {str(mail_error)}",
-        )
 
+@app.post("/predict")
+async def predict_reply(payload: dict):
+    predictor = ResponsePredictor()
+    return predictor.stream_reply_prediction(
+        original_email=payload["original_email"],
+        our_response=payload["our_response"]
+    )
 
 class EmailProps(BaseModel):
     subject: str
@@ -383,4 +377,4 @@ app.include_router(protected_router)
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", port=7000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0" , port=7000, reload=True , workers=8)
