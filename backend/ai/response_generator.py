@@ -14,7 +14,8 @@ class FastEmailResponseGenerator:
             temperature=0.3,
             num_thread=10,
             num_gpu=10,
-            streaming=True  # Enable streaming
+            streaming=True,
+            base_url="http://ollama:11434" # Enable streaming
         )
 
         self.emotion_system_prompt = SystemMessagePromptTemplate.from_template(

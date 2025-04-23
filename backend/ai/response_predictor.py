@@ -16,6 +16,7 @@ class ResponsePredictor:
             model=model_name,
             temperature=0.7,
             max_tokens=200,
+            base_url="http://ollama:11434",
             streaming=True  # enable streaming
         )
 
