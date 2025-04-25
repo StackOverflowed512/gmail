@@ -182,17 +182,16 @@ function Dashboard() {
   return (
     <div
       id="dashboardContent"
-      className="bg-[#121212] text-white p-6 grid grid-rows-11 h-screen"
+      className="bg-[#121212] text-white p-6 flex flex-col h-[90%]"
     >
       <h2 className="text-2xl font-bold row-span-1 mb-6">Dashboard Overview</h2>
-      <div className="grid grid-cols-2 grid-row-2 gap-6 row-span-10 overflow-hidden ">
+      <div className="grid grid-cols-2 flex-1 grid-row-2 gap-6 row-span-10 overflow-y-scroll  ">
         <div className="bg-[#1E1E1E] col-start-1 row-start-1 col-span-1 row-span-1 p-4 rounded-lg flex flex-col">
           <h3 className="text-lg font-semibold mb-4">Response Time Analysis</h3>
           <div className="flex-grow">
             <canvas id="responseTimeChart" className="w-full h-full"></canvas>
           </div>
         </div>
-
         <div className="bg-[#1E1E1E] col-start-1 row-start-2 col-span-1 row-span-1 p-4 rounded-lg flex flex-col">
           <h3 className="text-lg font-semibold mb-4">Response Probability</h3>
           <div className="flex-grow">

@@ -41,7 +41,7 @@ function SentBox() {
     }, [page]);
 
     return (
-        <div className="grid grid-row-12 grid-cols-1 h-full bg-[#181818] text-white">
+        <div className="grid grid-row-12 grid-cols-1 h-[90%] bg-[#181818] text-white">
             {/* Search Bar */}
             <div className="p-4 row-span-1 bg-[#1E1E1E] shadow-lg">
                 <input

@@ -1,35 +1,65 @@
 @import "tailwindcss";
 
 @theme {
-    --color-primary: #121212;
-    --color-secondary: #1E1E1E;
-    --color-background: #181818;
-    --color-tertiary: #2D2D2D;
-    --color-text-primary: #FFFFFF;
-    --color-text-secondary: #B3B3B3;
-    --color-border: #333333;
-    --color-hover: #3D3D3D;
-    --color-accent: #4A4A4A;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --color-primary: #121212;
+  --color-secondary: #1e1e1e;
+  --color-background: #181818;
+  --color-tertiary: #2d2d2d;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b3b3b3;
+  --color-border: #333333;
+  --color-hover: #3d3d3d;
+  --color-accent: #4a4a4a;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 #dashboardContent {
-    padding: 20px;
+  padding: 20px;
 }
 
 .chart-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
 }
 
 .dashboard-section {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .dashboard-section h3 {
-    margin-top: 0;
+  margin-top: 0;
+}
+
+/* For Webkit browsers (Chrome, Safari) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e; /* Dark track color */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a4a4a; /* Gray thumb color */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5e5e5e; /* Lighter gray on hover */
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4a4a4a #1e1e1e;
+}
+
+html{
+    max-height: 100vh;
+    overflow: hidden;
 }

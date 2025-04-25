@@ -36,7 +36,7 @@ function MailViewer() {
   }, [mail]);
 
   return (
-    <div className="p-6 bg-secondary min-h-screen max-h-screen">
+    <div className="p-6 bg-secondary h-[90%]">
       <div className="border overflow-hidden overflow-y-scroll p-6 rounded-lg shadow-lg">
         {mail ? (
           <div>

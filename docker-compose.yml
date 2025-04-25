@@ -27,6 +27,5 @@ services:
     entrypoint: ["sh", "/start-ollama.sh"]
     restart: always
 
-
 volumes:
   ollama_data:

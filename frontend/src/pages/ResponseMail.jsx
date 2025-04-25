@@ -36,7 +36,7 @@ function ResponseMail() {
     if (mail && mail.body) {
       const bodyElement = bodyRef.current;
       if (bodyElement) {
-        bodyElement.innerHTML = mail.body.replace(/(?:\r\n|\r|\n)/g, "<br>");
+        bodyElement.innerHTML = mail.body.replace(/(?:\r\n|\r|\n)(?=[^\s])/g, "<br>");
       }
     }
   }, [mail]);
@@ -154,7 +154,7 @@ function ResponseMail() {
       if (done) break;
       const chunk = decoder.decode(value);
       finalText += chunk;
-      setResponse((prev) => prev + chunk); // stream it to UI
+      setPredictedResponse((prev) => prev + chunk); // stream it to UI
     }
 
     // Extract percentage using regex
@@ -170,18 +170,20 @@ function ResponseMail() {
   };
 
   return (
-    <div className="px-6 py-4 gap-4 grid grid-rows-4 grid-cols-2 bg-secondary min-h-screen max-h-screen">
-      <div className="border row-span-4  overflow-hidden overflow-y-scroll p-6 rounded-lg shadow-lg mb-6">
+    <div className="px-6 py-4 gap-4 grid grid-rows-4 grid-cols-2 bg-secondary h-[90%]">
+      <div className="border row-span-4  overflow-hidden overflow-y-scroll w-full p-6 rounded-lg shadow-lg mb-6">
         {mail ? (
-          <div>
-            <p className="text-white">From: {mail.from}</p>
-            <h2 className="text-2xl font-semibold text-white mb-4">
+          <div
+          className="mx-auto flex flex-col items-center gap-0"
+          >
+            <p className="text-white w-full text-left">From: {mail.from}</p>
+            <h2 className="text-2xl font-semibold text-white w-full text-left">
               {mail.subject}
             </h2>
             <p
               id="mailBody"
               ref={bodyRef}
-              className="whitespace-pre-wrap text-white/80 leading-relaxed"
+              className="whitespace-pre-wrap text-white/80 w-full top-0"
             ></p>
           </div>
         ) : (
@@ -192,6 +194,7 @@ function ResponseMail() {
         <h3 className="text-xl font-semibold text-gray-100 mb-4">Reply</h3>
         <textarea
           value={response}
+          disabled={isLoading || !mail}
           name="message"
           onChange={(e) => setResponse(e.target.value)}
           placeholder="response email..."
@@ -201,7 +204,7 @@ function ResponseMail() {
         ></textarea>
         <div className="flex space-x-4 mt-4">
           <button
-            disabled={isLoading}
+            disabled={isLoading || !mail}
             onClick={() => {
               startTransition(() => {
                 getreplayfromAi();
@@ -209,7 +212,7 @@ function ResponseMail() {
             }}
             className={` ${
               isLoading ? "animate-pulse" : ""
-            } text-white flex items-center disabled:bg-accent  cursor-pointer justify-center  h-fit py-2 px-2 bg-blue-400 rounded-md `}
+            } text-white flex items-center disabled:bg-accent  cursor-pointer justify-center  h-fit py-2 px-2 bg-blue-400 rounded-md disabled:bg-gray-400  `}
           >
             <BrainCog />
             <span className={`ml-2`}>
@@ -219,8 +222,8 @@ function ResponseMail() {
           <button></button>
           <button
             onClick={mailsendHandler}
-            disabled={isPending}
-            className="px-4 h-fit py-2 cursor-pointer flex items-center gap-2 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-600 hover:via-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isPending || !response || !mail}
+            className="px-4 h-fit py-2 cursor-pointer flex items-center gap-2 bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-600 hover:via-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             <Send size={18} />
             Send
@@ -271,6 +274,7 @@ function ResponseMail() {
         )}
         <div className="flex flex-col space-x-4 mt-4">
           <button
+            disabled={isLoadingPredict || !mail || !response.length > 0}
             onClick={() => {
               startTransitionPredict(() => {
                 getPredictedReplayfromAi();
@@ -278,7 +282,7 @@ function ResponseMail() {
             }}
             className={` ${
               isLoadingPredict ? "animate-pulse" : ""
-            } text-white flex items-center disabled:bg-accent  cursor-pointer justify-center  h-fit py-2 px-2 bg-blue-400 rounded-md `}
+            } text-white flex items-center disabled:bg-accent  cursor-pointer justify-center  h-fit py-2 px-2 bg-blue-400 rounded-md disabled:bg-gray-400`}
           >
             <BrainCog />
             <span className="ml-2">
