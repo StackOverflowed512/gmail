@@ -1,4 +1,4 @@
-import { Info, X } from "lucide-react";
+import { Info, Trash, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
@@ -62,7 +62,18 @@ export default function Login() {
       setLoading(false);
     }
   };
-
+  const handleRemoveAccount = (accountEmail) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to remove this account?"
+    );
+    if (confirmDelete) {
+      const updatedAccounts = savedAccounts.filter(
+        (account) => account.email !== accountEmail
+      );
+      setSavedAccounts(updatedAccounts);
+      localStorage.setItem("savedAccounts", JSON.stringify(updatedAccounts));
+    }
+  };
   return (
     <>
       <div className="flex items-center justify-center h-full flex-1 bg-[#181818]">
@@ -127,17 +138,31 @@ export default function Login() {
                 </h3>
                 <div className="flex flex-col gap-2">
                   {savedAccounts.map((account, idx) => (
-                    <button
+                    <div
                       key={idx}
-                      className="text-left px-3 py-2 rounded bg-[#1E1E1E] text-[#B3B3B3] hover:bg-[#333] hover:text-[#FFF] transition-colors duration-200"
-                      onClick={() => {
-                        setEmail(account.email);
-                        setPassword(account.password);
-                        setShowAccounts(false);
-                      }}
+                      className="flex items-center justify-between group"
                     >
-                      {account.email}
-                    </button>
+                      <button
+                        className="text-left px-3 py-2 rounded bg-[#1E1E1E] text-[#B3B3B3] hover:bg-[#333] hover:text-[#FFF] transition-colors duration-200 flex-1"
+                        onClick={() => {
+                          setEmail(account.email);
+                          setPassword(account.password);
+                          setShowAccounts(false);
+                        }}
+                      >
+                        {account.email}
+                      </button>
+                      <button
+                        className="ml-2 p-1 text-[#5E5E5E] hover:text-red-500 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAccount(account.email);
+                        }}
+                        title="Remove account"
+                      >
+                        <Trash size={16} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -1,68 +1,68 @@
 from langchain_ollama import ChatOllama
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import (
-    SystemMessagePromptTemplate,
-    HumanMessagePromptTemplate,
-    ChatPromptTemplate
-)
+from langchain_core.prompts import ChatPromptTemplate
+import asyncio
 
 class FastEmailResponseGenerator:
-    def __init__(self, model_name: str = "mistral:7b-instruct-q4_K_M"):
+    """
+    Generates professional, empathetic email responses and detects sender emotion using LLMs.
+    All prompts and model parameters are configurable for flexibility and future extension.
+    """
+    def __init__(self, model_name="mistral:7b-instruct-q4_K_M", **kwargs):
         self.llm = ChatOllama(
             model=model_name,
-            max_tokens=150,
-            temperature=0.3,
-            streaming=True,
+            temperature=kwargs.get('temperature', 0.7),
+            streaming=True
         )
-
-        self.emotion_system_prompt = SystemMessagePromptTemplate.from_template(
-            "You are an expert in emotion analysis. Classify the given email "
-            "into one of these emotions: joy, sadness, anger, neutral. Respond with only the category."
-        )
-
-        self.response_system_prompt = SystemMessagePromptTemplate.from_template(
-            "You are an AI that generates professional, empathetic email responses. "
-            "Ensure the response is concise and solution-focused."
-        )
+        
+        # Enhanced prompt template for better responses
+        self.template = ChatPromptTemplate.from_messages([
+            ("system", """You are an AI email assistant that generates professional, 
+            empathetic responses. Consider the following guidelines:
+            - Be concise but thorough
+            - Maintain a {tone} tone
+            - Address all key points
+            - Be solution-oriented
+            - Use professional language
+            """),
+            ("human", """Given this email, generate a helpful response:
+            {email_content}
+            
+            The sender's emotional tone appears to be: {emotion}
+            
+            Generate a professional response:""")
+        ])
 
     async def detect_emotion(self, email_content: str) -> str:
-        """Run non-streaming emotion detection first."""
-        # Use a fresh non-streaming instance for classification
-        classification_llm = ChatOllama(model=self.llm.model, temperature=0.3, streaming=False)
-
+        """Detect the emotional tone of the email."""
+        emotion_llm = ChatOllama(
+            model=self.llm.model,
+            temperature=0.3,
+            streaming=False
+        )
+        
         emotion_prompt = ChatPromptTemplate.from_messages([
-            self.emotion_system_prompt,
-            HumanMessagePromptTemplate.from_template("{email}")
+            ("system", "Classify the emotional tone of this email as either: positive, negative, neutral, or urgent."),
+            ("human", "{email}")
         ])
         
-        emotion_chain = emotion_prompt | classification_llm | StrOutputParser()
-        emotion = await emotion_chain.ainvoke({"email": email_content})
-        return emotion.strip().lower()
+        response = await emotion_llm.ainvoke(
+            emotion_prompt.format_messages(email=email_content)
+        )
+        return response.content.strip().lower()
 
     def stream_email_response(self, email_content: str, emotion: str):
-        """Stream the response tokens asynchronously."""
-
-        response_prompt = ChatPromptTemplate.from_messages([
-            self.response_system_prompt,
-            HumanMessagePromptTemplate.from_template(
-                f"""Generate a professional email body response (no subject, no greetings/signatures) based on the following email. 
-                The sender's emotional tone is **{emotion}**. Follow these rules strictly:
-                1. **Acknowledge the emotion**: Recognize the sender's tone ({emotion}) in a professional way.
-                2. **Address concerns**: Directly respond to key issues raised.
-                3. **Provide solutions**: Offer clear, actionable steps.
-                4. **Be concise**: Keep it brief (2-3 sentences max).
-
-                Email: {{email}}
-
-                Respond with ONLY the email body text, formatted professionally. Do not include labels like "Response:".
-                """
+        """Generate and stream the email response."""
+        
+        async def response_generator():
+            messages = self.template.format_messages(
+                tone="professional",
+                email_content=email_content,
+                emotion=emotion
             )
-        ])
-
-        response_chain = response_prompt | self.llm
-
-        async def generator():
-            async for chunk in response_chain.astream({"email": email_content}):
-                yield chunk.content
-
-        return generator
+            
+            async for chunk in self.llm.astream(messages):
+                if chunk.content:
+                    yield chunk.content
+                await asyncio.sleep(0)  # Allow other tasks to run
+        
+        return response_generator

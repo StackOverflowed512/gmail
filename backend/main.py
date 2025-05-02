@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, APIRouter, Depends
+from fastapi import FastAPI, HTTPException, status, APIRouter, Depends , Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import dns.resolver
@@ -8,13 +8,16 @@ from mail.mails import Mail
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
-SECRET_KEY = "your-secret-key-here"  # Change this to a secure secret key
+
+# Secret key and JWT configuration
+SECRET_KEY = "mailaiv1bycodexuln232412"  # Change this to a secure secret key
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
 
+# Enable CORS for all origins (adjust for production)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,13 +25,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------
+# Pydantic Models
+# ---------------------------
 
 class LoginProps(BaseModel):
     email: str
     password: str
 
+class MailByUid(BaseModel):
+    uid: str
+
+class ResponseProps(BaseModel):
+    data: str
+
+class EmailProps(BaseModel):
+    subject: str
+    body: str
+    to: str
+
+# ---------------------------
+# Utility Functions
+# ---------------------------
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
+    """
+    Create a JWT access token with the provided data and expiration.
+    """
     print("create_access_token")
     to_encode = data.copy()
     print(to_encode)
@@ -40,10 +63,16 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+# ---------------------------
+# Authentication Endpoints
+# ---------------------------
 
 @app.post("/login")
 async def login(props: LoginProps):
-    # Implement login logic
+    """
+    User login endpoint.
+    Validates credentials and returns a JWT token with mail server info.
+    """
     email, password = props.email, props.password
     auth = Auth(email, password)
     try:
@@ -74,13 +103,18 @@ async def login(props: LoginProps):
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Login failed"
         )
 
+# ---------------------------
+# Protected API Router
+# ---------------------------
 
-# protected route only accessible with a valid token
 protected_router = APIRouter()
-
 
 @protected_router.get("/protected")
 async def protected_route(token: str = Depends(oauth2_scheme)):
+    """
+    Example protected route.
+    Returns user and mail server info if token is valid.
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -108,9 +142,11 @@ async def protected_route(token: str = Depends(oauth2_scheme)):
             detail="Invalid authentication credentials",
         )
 
-
 @protected_router.get("/current_user")
 async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """
+    Returns the current user's credentials and mail server info.
+    """
     print("get_current_user")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -141,11 +177,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             detail="Invalid authentication credentials",
         )
 
-
 @protected_router.get("/inbox")
 async def getmails(
     token: str = Depends(oauth2_scheme), page: int = 1, per_page: int = 10
 ):
+    """
+    Fetch paginated inbox emails for the authenticated user.
+    """
     print("getmails")
     print(page, per_page)
     try:
@@ -186,14 +224,13 @@ async def getmails(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
-
-class MailByUid(BaseModel):
-    uid: str
 @protected_router.post("/mail")
 async def get_mail_by_uid(props: MailByUid, token: str = Depends(oauth2_scheme)):
+    """
+    Fetch a specific email by UID for the authenticated user.
+    """
     print("get_mail_by_uid")
     print(props.uid)
-    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -221,50 +258,84 @@ async def get_mail_by_uid(props: MailByUid, token: str = Depends(oauth2_scheme))
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-        )
 
-
-
-class ResponseProps(BaseModel):
-    data: str
+# ---------------------------
+# AI Integration
+# ---------------------------
 
 from ai.response_generator import FastEmailResponseGenerator
-from fastapi import Request
-generator = FastEmailResponseGenerator()
-@app.post("/response")
-async def generate_email(request: Request):
-    data = await request.json()
-    email_content = data.get("email")
-    emotion = await generator.detect_emotion(email_content)
-    stream = generator.stream_email_response(email_content, emotion)
-    return StreamingResponse(stream(), media_type="text/plain")
-
 from ai.response_predictor import ResponsePredictor
-class PredictProps(BaseModel):
-    original_email: str
-    our_response: str
+
+# Instantiate the AI response generator and predictor.
+# You can customize these parameters or load from config/env for flexibility.
+generator = FastEmailResponseGenerator(
+    model_name="mistral:7b-instruct-q4_K_M",
+    max_tokens=250,
+    temperature=0.7,
+    streaming=True,
+    # emotion_prompt="Custom emotion prompt if needed",
+    # response_prompt="Custom response prompt if needed",
+    # response_human_template="Custom human template if needed"
+)
+
+predictor = ResponsePredictor(
+    model_name="mistral:7b-instruct-q4_K_M",
+    temperature=0.7,
+    max_tokens=200,
+    streaming=True,
+    # system_prompt="Custom system prompt if needed",
+    # human_prompt_template="Custom human template if needed"
+)
+
+@app.post("/response")
+async def generate_email_response(request: Request):
+    try:
+        data = await request.json()
+        email_content = data.get("data")
+        
+        if not email_content:
+            raise HTTPException(status_code=400, detail="Email content is required")
+
+        # Detect emotion first
+        emotion = await generator.detect_emotion(email_content)
+        
+        # Get the response stream
+        response_stream = generator.stream_email_response(email_content, emotion)
+        
+        return StreamingResponse(
+            response_stream(),
+            media_type="text/plain",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict")
 async def predict_reply(payload: dict):
-    predictor = ResponsePredictor()
+    """
+    Predict the most likely reply to an email conversation using AI.
+    Streams the prediction as plain text.
+    """
     return predictor.stream_reply_prediction(
         original_email=payload["original_email"],
         our_response=payload["our_response"]
     )
 
-class EmailProps(BaseModel):
-    subject: str
-    body: str
-    to: str
+# ---------------------------
+# Email Sending and Sent Mail Endpoints
+# ---------------------------
 
 @protected_router.post("/send")
 async def send_email(
     props: EmailProps, token: str = Depends(oauth2_scheme)
 ):
+    """
+    Send an email using the authenticated user's credentials.
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -293,11 +364,13 @@ async def send_email(
             detail="Invalid authentication credentials",
         )
 
-
 @protected_router.get("/sentbox")
 async def get_sent_mails(
     token: str = Depends(oauth2_scheme), page: int = 1, per_page: int = 10
 ):
+    """
+    Fetch paginated sent emails for the authenticated user.
+    """
     print("get_sent_mails")
     print(page, per_page)
     try:
@@ -338,12 +411,13 @@ async def get_sent_mails(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
-
 @protected_router.post("/sent_mail")
 async def get_sent_mail_by_uid(props: MailByUid, token: str = Depends(oauth2_scheme)):
+    """
+    Fetch a specific sent email by UID for the authenticated user.
+    """
     print("get_sent_mail_by_uid")
     print(props.uid)
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
@@ -372,9 +446,14 @@ async def get_sent_mail_by_uid(props: MailByUid, token: str = Depends(oauth2_sch
             detail="Invalid authentication credentials",
         )
 
+# ---------------------------
+# FastAPI App Startup
+# ---------------------------
 
+# Register the protected router with the main app
 app.include_router(protected_router)
+
 if __name__ == "__main__":
     import uvicorn
-
+    # Run the FastAPI app with Uvicorn server
     uvicorn.run("main:app", host="0.0.0.0" , port=7000, reload=True , workers=8)
