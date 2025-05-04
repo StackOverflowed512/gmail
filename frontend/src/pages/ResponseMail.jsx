@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { data, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { BrainCog, Send } from "lucide-react";
+import { useHistory } from "../context/HistoryContext";
+
 function ResponseMail() {
     const { uid } = useParams();
     const [mail, setMail] = useState();
@@ -13,6 +15,9 @@ function ResponseMail() {
     const [predictedResponse, setPredictedResponse] = useState({});
     const [error, setError] = useState("");
     const navigate = useNavigate();
+    const { getHistory, updateHistory } = useHistory();
+    const [emailHistory, setEmailHistory] = useState(null);
+
     useEffect(() => {
         const fetcher = async () => {
             try {
@@ -109,12 +114,22 @@ function ResponseMail() {
             }
 
             const plainTextBody = htmlToPlainText(mail.body);
+            const senderEmail = mail.from.match(/<([^>]+)>/)?.[1] || mail.from;
+            const history = getHistory(senderEmail);
+
             const res = await fetch("/api/response", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ data: plainTextBody }),
+                body: JSON.stringify({
+                    data: plainTextBody,
+                    history: {
+                        previousIssues: history.issues,
+                        previousReplies: history.replies,
+                        lastInteraction: history.lastInteraction,
+                    },
+                }),
             });
 
             if (!res.ok) {
@@ -124,13 +139,22 @@ function ResponseMail() {
             // Handle streaming response
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
+            let accumulatedResponse = "";
 
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
 
                 const text = decoder.decode(value);
+                accumulatedResponse += text;
                 setResponse((prev) => prev + text);
+            }
+
+            if (accumulatedResponse) {
+                updateHistory(senderEmail, {
+                    issue: plainTextBody,
+                    reply: accumulatedResponse,
+                });
             }
         } catch (err) {
             console.error("Error generating response:", err);
@@ -211,6 +235,14 @@ function ResponseMail() {
 
         setIsLoadingPredict(false);
     };
+
+    useEffect(() => {
+        if (mail?.from) {
+            const senderEmail = mail.from.match(/<([^>]+)>/)?.[1] || mail.from;
+            const history = getHistory(senderEmail);
+            setEmailHistory(history);
+        }
+    }, [mail, getHistory]);
 
     return (
         <div className="px-6 py-4 gap-4 grid grid-rows-4 grid-cols-2 bg-secondary h-[90%]">
@@ -428,6 +460,22 @@ function ResponseMail() {
                     </button>
                 </div>
             </div>
+            {emailHistory && emailHistory.replies.length > 0 && (
+                <div className="col-span-2 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg mb-4">
+                    <h4 className="text-white font-medium mb-2">
+                        Previous Interactions
+                    </h4>
+                    <p className="text-white/80 text-sm">
+                        Last interaction:{" "}
+                        {new Date(
+                            emailHistory.lastInteraction
+                        ).toLocaleDateString()}
+                    </p>
+                    <p className="text-white/80 text-sm">
+                        Total interactions: {emailHistory.replies.length}
+                    </p>
+                </div>
+            )}
         </div>
     );
 }

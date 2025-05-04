@@ -23,6 +23,11 @@ class FastEmailResponseGenerator:
             - Address all key points
             - Be solution-oriented
             - Use professional language
+            
+            Previous context:
+            - Past interactions: {interaction_count}
+            - Recent replies: {previous_replies}
+            - Common issues: {previous_issues}
             """),
             ("human", """Given this email, generate a helpful response:
             {email_content}
@@ -33,36 +38,50 @@ class FastEmailResponseGenerator:
         ])
 
     async def detect_emotion(self, email_content: str) -> str:
-        """Detect the emotional tone of the email."""
-        emotion_llm = ChatOllama(
-            model=self.llm.model,
-            temperature=0.3,
-            streaming=False
-        )
-        
-        emotion_prompt = ChatPromptTemplate.from_messages([
-            ("system", "Classify the emotional tone of this email as either: positive, negative, neutral, or urgent."),
-            ("human", "{email}")
-        ])
-        
-        response = await emotion_llm.ainvoke(
-            emotion_prompt.format_messages(email=email_content)
-        )
-        return response.content.strip().lower()
+        try:
+            emotion_llm = ChatOllama(
+                model=self.llm.model,
+                temperature=0.3,
+                streaming=False
+            )
+            
+            emotion_prompt = ChatPromptTemplate.from_messages([
+                ("system", "Classify the emotional tone of this email as either: positive, negative, neutral, or urgent."),
+                ("human", "{email}")
+            ])
+            
+            response = await emotion_llm.ainvoke(
+                emotion_prompt.format_messages(email=email_content)
+            )
+            return response.content.strip().lower()
+        except Exception as e:
+            print(f"Error detecting emotion: {e}")
+            return "neutral"  # Default fallback
 
-    def stream_email_response(self, email_content: str, emotion: str):
+    def stream_email_response(self, email_content: str, emotion: str, context: dict = None):
         """Generate and stream the email response."""
         
         async def response_generator():
-            messages = self.template.format_messages(
-                tone="professional",
-                email_content=email_content,
-                emotion=emotion
-            )
-            
-            async for chunk in self.llm.astream(messages):
-                if chunk.content:
-                    yield chunk.content
-                await asyncio.sleep(0)  # Allow other tasks to run
+            try:
+                # Prepare context data
+                context_data = {
+                    "tone": "professional",
+                    "email_content": email_content,
+                    "emotion": emotion,
+                    "interaction_count": context.get("interaction_count", 0) if context else 0,
+                    "previous_replies": "\n".join(context.get("previous_replies", []))[-500:] if context else "",
+                    "previous_issues": ", ".join(context.get("previous_issues", [])) if context else "None"
+                }
+                
+                messages = self.template.format_messages(**context_data)
+                
+                async for chunk in self.llm.astream(messages):
+                    if chunk.content:
+                        yield chunk.content
+                    await asyncio.sleep(0)
+                    
+            except Exception as e:
+                print(f"Error generating response: {e}")
+                yield "I apologize, but I encountered an error generating the response. Please try again."
         
         return response_generator

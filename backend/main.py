@@ -292,27 +292,51 @@ async def generate_email_response(request: Request):
     try:
         data = await request.json()
         email_content = data.get("data")
+        history = data.get("history", {})
         
         if not email_content:
             raise HTTPException(status_code=400, detail="Email content is required")
 
-        # Detect emotion first
-        emotion = await generator.detect_emotion(email_content)
-        
-        # Get the response stream
-        response_stream = generator.stream_email_response(email_content, emotion)
-        
-        return StreamingResponse(
-            response_stream(),
-            media_type="text/plain",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive"
+        try:
+            # Detect emotion first
+            emotion = await generator.detect_emotion(email_content)
+            
+            # Format context data
+            context = {
+                "interaction_count": len(history.get("previousReplies", [])),
+                "previous_replies": history.get("previousReplies", [])[-3:],  # Last 3 replies
+                "previous_issues": history.get("previousIssues", [])
             }
-        )
-        
+            
+            # Get the response stream
+            response_stream = generator.stream_email_response(
+                email_content, 
+                emotion,
+                context
+            )
+            
+            return StreamingResponse(
+                response_stream(),
+                media_type="text/plain",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
+            )
+            
+        except Exception as e:
+            print(f"Error in AI processing: {str(e)}")
+            raise HTTPException(
+                status_code=500, 
+                detail="Error processing AI response"
+            )
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error in request handling: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=str(e)
+        )
 
 @app.post("/predict")
 async def predict_reply(payload: dict):
