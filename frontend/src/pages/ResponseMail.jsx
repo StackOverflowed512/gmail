@@ -105,8 +105,8 @@ function ResponseMail() {
     }
     const getreplayfromAi = async () => {
         setIsLoading(true);
-        setError(""); // Clear previous errors
-        setResponse(""); // Clear previous response
+        setError("");
+        setResponse("");
 
         try {
             if (!mail || !mail.body) {
@@ -124,6 +124,7 @@ function ResponseMail() {
                 },
                 body: JSON.stringify({
                     data: plainTextBody,
+                    email: senderEmail, // Add sender's email
                     history: {
                         previousIssues: history.issues,
                         previousReplies: history.replies,
@@ -131,10 +132,6 @@ function ResponseMail() {
                     },
                 }),
             });
-
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
 
             // Handle streaming response
             const reader = res.body.getReader();

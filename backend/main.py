@@ -292,6 +292,7 @@ async def generate_email_response(request: Request):
     try:
         data = await request.json()
         email_content = data.get("data")
+        email = data.get("email")  # Add email parameter
         history = data.get("history", {})
         
         if not email_content:
@@ -304,15 +305,16 @@ async def generate_email_response(request: Request):
             # Format context data
             context = {
                 "interaction_count": len(history.get("previousReplies", [])),
-                "previous_replies": history.get("previousReplies", [])[-3:],  # Last 3 replies
+                "previous_replies": history.get("previousReplies", [])[-3:],
                 "previous_issues": history.get("previousIssues", [])
             }
             
-            # Get the response stream
+            # Get the response stream with ticket history
             response_stream = generator.stream_email_response(
-                email_content, 
-                emotion,
-                context
+                email_content=email_content,
+                email=email,  # Pass email for ticket lookup
+                emotion=emotion,
+                context=context
             )
             
             return StreamingResponse(
@@ -326,17 +328,11 @@ async def generate_email_response(request: Request):
             
         except Exception as e:
             print(f"Error in AI processing: {str(e)}")
-            raise HTTPException(
-                status_code=500, 
-                detail="Error processing AI response"
-            )
+            raise HTTPException(status_code=500, detail="Error processing AI response")
             
     except Exception as e:
         print(f"Error in request handling: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict")
 async def predict_reply(payload: dict):

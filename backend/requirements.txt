@@ -23,6 +23,7 @@ langsmith
 numpy
 ollama
 orjson
+pandas
 packaging
 pyasn1
 pydantic
