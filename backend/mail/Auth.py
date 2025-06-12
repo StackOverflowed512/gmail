@@ -16,71 +16,22 @@ class Auth:
 
     async def get_email_provider(self):
         """Finds the SMTP and IMAP servers for a given email address."""
-        domain =self.email.split("@")[-1]
-        print("Finding email provider...")
-        print("Domain:", domain)
         try:
-            # Get MX record (Mail Exchange server)
-            mx_records = dns.resolver.resolve(domain, "MX")
-            print("MX Records:", mx_records)
-            mx_host = str(mx_records[0].exchange).rstrip(".")
-            print("MX Host:", mx_host)
-            # Known email providers (predefined for faster results)
-            domain2 =mx_host.split(".")[-2]+"."+  mx_host.split(".")[-1]
-            known_providers = {
-                "gmail.com": ("imap.gmail.com", 993, "smtp.gmail.com", 587),
-                "yahoo.com": ("imap.mail.yahoo.com", 993, "smtp.mail.yahoo.com", 587),
-                "outlook.com": ("outlook.office365.com", 993, "smtp.office365.com", 587),
-                "icloud.com": ("imap.mail.me.com", 993, "smtp.mail.me.com", 587),
-                "zoho.com": ("imap.zoho.com", 993, "smtp.zoho.com", 587),
-            }
-
-            # If domain is known, return predefined IMAP/SMTP
-            if domain in known_providers:
-                self.imapHost, self.imapPort, self.smtpHost, self.smtpPort = known_providers[domain]
-            elif domain2 in known_providers:
-                self.imapHost, self.imapPort, self.smtpHost, self.smtpPort = known_providers[domain2]
-            else:
-                domain =mx_host.split(".")[-2]+"."+  mx_host.split(".")[-1]
-                print("Domain:", domain)
-                # Common IMAP & SMTP subdomains
-                imap_hosts = [f"imap.{domain}", f"mail.{domain}"]
-                smtp_hosts = [f"smtp.{domain}", f"mail.{domain}"]
-
-                # Common IMAP & SMTP ports
-                imap_ports = [993, 143]
-                smtp_ports = [465, 587, 25]
-
-                # Find working IMAP server & port
-                for imap_host in imap_hosts:
-                    for port in imap_ports:
-                        if await self.check_port(imap_host, port):
-                            self.imapHost = imap_host
-                            self.imapPort = port
-                            break
-                    if self.imapHost:
-                        break
-
-                # Find working SMTP server & port
-                for smtp_host in smtp_hosts:
-                    for port in smtp_ports:
-                        if await self.check_port(smtp_host, port):
-                            self.smtpHost = smtp_host
-                            self.smtpPort = port
-                            break
-                    if self.smtpHost:
-                        break
-
+            # For custom domain email servers
+            self.imapHost = "server53.hostingraja.org"
+            self.imapPort = 993  # SSL enabled
+            self.smtpHost = "server53.hostingraja.org"
+            self.smtpPort = 465  # SSL enabled
+            
             return {
                 "Email": self.email,
-                "MX Host": mx_host,
-                "IMAP Host": self.imapHost or "Not found",
-                "IMAP Port": self.imapPort or "Not found",
-                "SMTP Host": self.smtpHost or "Not found",
-                "SMTP Port": self.smtpPort or "Not found",
+                "IMAP Host": self.imapHost,
+                "IMAP Port": self.imapPort,
+                "SMTP Host": self.smtpHost,
+                "SMTP Port": self.smtpPort
             }
-
         except Exception as e:
+            print(f"Error in get_email_provider: {e}")
             return {"error": str(e)}
 
     async def check_port(self, host, port):
