@@ -15,6 +15,7 @@ import SentBox from "./pages/SentBox";
 import MailViewer from "./pages/MailViewer";
 import Footer from "./components/Footer";
 import { HistoryProvider } from "./context/HistoryContext";
+import Settings from "./pages/Settings";
 
 function App() {
     return (
@@ -69,6 +70,14 @@ function App() {
                                     element={
                                         <RequireAuth>
                                             <MailViewer />
+                                        </RequireAuth>
+                                    }
+                                />
+                                <Route
+                                    path="settings"
+                                    element={
+                                        <RequireAuth>
+                                            <Settings />
                                         </RequireAuth>
                                     }
                                 />
