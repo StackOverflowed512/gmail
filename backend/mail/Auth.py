@@ -126,22 +126,21 @@ class Auth:
         smtp_check = await self.verify_smtp()
         imap_check = await self.verify_imap()
         
-        if smtp_check and imap_check:
+        try:
+            # If login successful
             return {
-                "Email": self.email,
+                "login": True,
                 "SMTPHost": self.smtpHost,
-                "SMTPPort": self.smtpPort,
                 "IMAPHost": self.imapHost,
+                "SMTPPort": self.smtpPort,
                 "IMAPPort": self.imapPort,
-                "Password": self.password,
-                "login":True
             }
-        return {
-            "Email": self.email,
-            "SMTPHost": self.smtpHost,
-            "SMTPPort": self.smtpPort,
-            "IMAPHost": self.imapHost,
-            "IMAPPort": self.imapPort,
-            "Password": self.password,
-            "login":False
-        }
+        except Exception as e:
+            print("Auth.login error:", e)
+            return {
+                "login": False,
+                "SMTPHost": self.smtpHost,
+                "IMAPHost": self.imapHost,
+                "SMTPPort": self.smtpPort,
+                "IMAPPort": self.imapPort,
+            }

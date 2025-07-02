@@ -8,6 +8,7 @@ from mail.mails import Mail
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
+from typing import Optional
 
 # Secret key and JWT configuration
 SECRET_KEY = "mailaiv1bycodexuln232412"  # Change this to a secure secret key
@@ -32,6 +33,10 @@ app.add_middleware(
 class LoginProps(BaseModel):
     email: str
     password: str
+    custom_smtp_host: Optional[str] = None
+    custom_smtp_port: Optional[int] = None
+    custom_imap_host: Optional[str] = None
+    custom_imap_port: Optional[int] = None
 
 class MailByUid(BaseModel):
     uid: str
@@ -69,16 +74,22 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 @app.post("/login")
 async def login(props: LoginProps):
-    """
-    User login endpoint.
-    Validates credentials and returns a JWT token with mail server info.
-    """
     email, password = props.email, props.password
     auth = Auth(email, password)
+
+    # Use custom server settings if provided, else autodetect
+    if props.custom_smtp_host and props.custom_smtp_port and props.custom_imap_host and props.custom_imap_port:
+        auth.smtpHost = props.custom_smtp_host
+        auth.smtpPort = props.custom_smtp_port
+        auth.imapHost = props.custom_imap_host
+        auth.imapPort = props.custom_imap_port
+    else:
+        await auth.get_email_provider()
+
     try:
-        login = await auth.login()
-        if not login["login"]:
-            print("Login failed")
+        login_result = await auth.login()
+        if not login_result.get("login"):
+            print("Login failed:", login_result)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Login failed"
             )
@@ -88,19 +99,22 @@ async def login(props: LoginProps):
             data={
                 "sub": email,
                 "password": password,
-                "smtpHost": login["SMTPHost"],
-                "imapHost": login["IMAPHost"],
-                "smtpPort": login["SMTPPort"],
-                "imapPort": login["IMAPPort"],
+                "smtpHost": login_result["SMTPHost"],
+                "imapHost": login_result["IMAPHost"],
+                "smtpPort": login_result["SMTPPort"],
+                "imapPort": login_result["IMAPPort"],
             },
             expires_delta=access_token_expires,
         )
         return {"access_token": access_token, "token_type": "bearer"}
 
+    except HTTPException as e:
+        print("HTTPException in login:", e.detail)
+        raise
     except Exception as e:
-        print("error main", e)
+        print("Unhandled exception in login:", repr(e))
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Login failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
 
 # ---------------------------

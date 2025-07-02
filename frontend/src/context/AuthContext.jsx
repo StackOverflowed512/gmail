@@ -61,7 +61,13 @@ export const AuthProvider = ({ children }) => {
                 }),
             });
 
-            const result = await response.json();
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (jsonErr) {
+                // If response is not JSON, set a generic error
+                result = { detail: "Server error. Please try again." };
+            }
 
             if (response.ok) {
                 localStorage.setItem("access_token", result.access_token);
